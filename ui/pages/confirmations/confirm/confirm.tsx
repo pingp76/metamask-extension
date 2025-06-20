@@ -1,5 +1,5 @@
 import { ReactNodeLike } from 'prop-types';
-import React, { ReactNode, useCallback, useState } from 'react';
+import React, { ReactNode, useCallback, useState, useEffect } from 'react';
 
 import { Page } from '../../../components/multichain/pages/page';
 import { GasFeeContextProvider } from '../../../contexts/gasFee';
@@ -26,6 +26,7 @@ import { LlmTransactionAnalysisService } from '../../../../shared/lib/llm-analys
 import { formatTransactionForLLM } from '../utils/llm-analytics.util';
 import { AnalysisButton } from '../components/llm-transaction-analysis/AnalysisButton';
 import { AnalysisResult } from '../components/llm-transaction-analysis/AnalysisResult';
+import ApiKeyConfigurationModal from '../components/llm-transaction-analysis/ApiKeyConfigurationModal';
 // --- End LLM Analysis Imports ---
 
 // Define a type for the analysis result state
@@ -67,28 +68,34 @@ const LlmAnalysisSection = () => {
     'idle' | 'loading' | 'done' | 'error'
   >('idle');
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Load API key from storage on component mount
+    chrome.storage.local.get(['openRouterApiKey'], (result) => {
+      if (result.openRouterApiKey) {
+        setApiKey(result.openRouterApiKey);
+      }
+    });
+  }, []);
 
   const handleAnalyzeClick = useCallback(async () => {
+    if (!apiKey) {
+      setIsModalOpen(true);
+      return;
+    }
+
     setAnalysisState('loading');
     setAnalysisData(null);
 
     const service = new LlmTransactionAnalysisService();
-    // The 'currentConfirmation' can be one of many types. We check for txParams
-    // to ensure we're dealing with a transaction-like confirmation.
-    if (!('txParams' in currentConfirmation)) {
-      setAnalysisState('error');
-      setAnalysisData({
-        analysis: 'This type of confirmation cannot be analyzed.',
-        riskLevel: 'high',
-      });
-      return;
-    }
     const formattedData = formatTransactionForLLM(currentConfirmation);
 
     if (!formattedData) {
       setAnalysisState('error');
       setAnalysisData({
-        analysis: 'Could not format transaction data for analysis.',
+        analysis: 'This type of confirmation cannot be analyzed.',
         riskLevel: 'high',
       });
       return;
@@ -105,12 +112,26 @@ const LlmAnalysisSection = () => {
       setAnalysisState('done');
       setAnalysisData(result);
     }
-  }, [currentConfirmation]);
+  }, [currentConfirmation, apiKey]);
+
+  const handleConfigureClick = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleModalSave = (newKey: string) => {
+    setApiKey(newKey);
+    // The modal itself handles saving to chrome.storage.local
+  };
 
   return (
     <div style={{ padding: '0 16px' }}>
       <AnalysisButton
-        onClick={handleAnalyzeClick}
+        onAnalyze={handleAnalyzeClick}
+        onConfigure={handleConfigureClick}
         isLoading={analysisState === 'loading'}
       />
       {analysisData && (
@@ -119,6 +140,11 @@ const LlmAnalysisSection = () => {
           riskLevel={analysisData.riskLevel}
         />
       )}
+      <ApiKeyConfigurationModal
+        open={isModalOpen}
+        onClose={handleModalClose}
+        onSave={handleModalSave}
+      />
     </div>
   );
 };

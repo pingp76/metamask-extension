@@ -16,3 +16,29 @@
 - 代码要遵从metamask的代码风格和目录结构
 - 要分成步骤来构建，每次构建之后进行单元测试
 - 最后有集成测试
+
+---
+
+##  第四部分：概念验证（PoC）实现方案
+
+基于第一阶段的开发，我们确定了以下技术实现方案：
+
+### 1. 核心集成点
+- **UI 入口**: 新功能被集成在 `ui/pages/confirmations/confirm/confirm.tsx` 文件中。通过在该文件内添加一个新的 React 组件 `LlmAnalysisSection` 来挂载所有与AI分析相关的UI和逻辑。
+
+### 2. 关键模块与组件
+- **服务层**:
+  - `shared/lib/llm-analysis-service.ts`: 创建了 `LlmTransactionAnalysisService` 类，专门负责处理对 OpenRouter LLM API 的网络请求。它封装了 API Key、请求构建和响应解析的逻辑。
+- **工具函数**:
+  - `ui/pages/confirmations/utils/llm-analytics.util.ts`: 创建了 `formatTransactionForLLM` 工具函数，用于将 MetaMask 内部的 `confirmation` 对象转换为适合 LLM 分析的、结构化的 JSON 对象。
+- **UI 组件**:
+  - `ui/pages/confirmations/components/llm-transaction-analysis/`: 在此目录下创建了两个新的 React 组件：
+    - `AnalysisButton.tsx`: 供用户点击以触发分析的按钮，包含加载状态。
+    - `AnalysisResult.tsx`: 用于展示从 LLM 返回并解析后的分析结果和风险等级。
+
+### 3. 关键实现细节与经验
+- **模块导入/导出**: 项目中存在 ES Module 和 CommonJS 模块混用的情况。在导入我们创建的 `LlmTransactionAnalysisService` 类时，必须使用命名导入 (`import { ... } from ...`) 而非默认导入，这解决了初始的 `is not a constructor` 错误。
+- **类型定义**: MetaMask 内部对象的类型定义可能与我们最初的设想不完全一致。例如，交易对象中的 `value` 字段是可选的 (`string | undefined`)。在定义接口时必须考虑到这一点，以避免 TypeScript 类型错误。
+- **LLM 响应解析**: LLM 模型返回的 JSON 数据常被包裹在 Markdown 的代码块中 ( ` ```json ... ``` ` )。在 `JSON.parse` 之前，必须先用正则表达式等方式将纯净的 JSON 字符串提取出来，以确保解析成功。
+
+完整的开发过程和错误修复日志已记录在：`./llm_feature_development_log.md` 中，可供随时查阅。

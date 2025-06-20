@@ -1,4 +1,8 @@
 import { ethers } from 'ethers';
+import {
+  Confirmation,
+  SignatureRequestType,
+} from '../types/confirm';
 
 // It's a good practice to define an interface for the complex objects you expect.
 // This is a simplified version based on our analysis.
@@ -16,21 +20,55 @@ interface Confirmation {
   type: string;
 }
 
+// Type guard to check if the confirmation is a signature request
+const isSignatureRequest = (
+  confirmation: Confirmation,
+): confirmation is SignatureRequestType => {
+  return 'msgParams' in confirmation && confirmation.msgParams !== undefined;
+};
+
 /**
  * Extracts key information from a MetaMask confirmation object and formats it
  * into a structured object suitable for sending to an LLM for analysis.
  *
- * @param {Confirmation} confirmation - The confirmation object from MetaMask,
- * which contains transaction details.
- * @returns {object|null} A structured object with transaction details for the LLM,
- * or null if the input is invalid.
+ * @param confirmation - The confirmation object from MetaMask,
+ * which can be a transaction or a signature request.
+ * @returns A structured object with details for the LLM,
+ * or null if the input is invalid or cannot be handled.
  */
 export const formatTransactionForLLM = (confirmation: Confirmation) => {
-  if (!confirmation || !confirmation.txParams) {
+  if (!confirmation) {
     return null;
   }
 
-  const { txParams, origin } = confirmation;
+  if (isSignatureRequest(confirmation)) {
+    const { msgParams, type, origin } = confirmation;
+
+    if (!msgParams) {
+      return null;
+    }
+
+    // For signature requests, the 'data' can be a string or a complex object.
+    // We'll stringify the object for the PoC.
+    const messageToSign =
+      typeof msgParams.data === 'string'
+        ? msgParams.data
+        : JSON.stringify(msgParams.data, null, 2);
+
+    return {
+      from: msgParams.from,
+      origin: origin ?? msgParams.origin, // Fallback to msgParams.origin
+      type, // e.g., 'personal_sign', 'eth_signTypedData_v4'
+      message: messageToSign,
+    };
+  }
+
+  // Handle standard transactions (TransactionMeta)
+  if (!('txParams' in confirmation) || !confirmation.txParams) {
+    return null;
+  }
+
+  const { txParams, origin, type } = confirmation;
 
   // Key details to extract for analysis
   const details = {
@@ -38,8 +76,8 @@ export const formatTransactionForLLM = (confirmation: Confirmation) => {
     to: txParams.to,
     value: '0 ETH',
     data: txParams.data,
-    origin, // The dApp initiating the transaction
-    type: confirmation.type, // e.g., 'contractInteraction', 'simpleSend'
+    origin: origin ?? 'Unknown Origin', // The dApp initiating the transaction
+    type, // e.g., 'contractInteraction', 'simpleSend'
   };
 
   // Convert hex value (in Wei) to a human-readable ETH string
