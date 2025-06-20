@@ -9,6 +9,14 @@ class TokenTransferTransactionConfirmation extends TransactionConfirmation {
 
   private readonly gasInputs = 'input[type="number"]';
 
+  private readonly llmAnalysisButton = '[data-testid="llm-analysis-button"]';
+
+  private readonly llmAnalysisResult = '[data-testid="llm-analysis-result"]';
+
+  private readonly llmAnalysisError = '[data-testid="llm-analysis-error"]';
+
+  private readonly llmAnalysisLoading = '[data-testid="llm-loading-spinner"]';
+
   private readonly interactingWithParagraph = {
     css: 'p',
     text: tEn('interactingWith') as string,
@@ -38,6 +46,11 @@ class TokenTransferTransactionConfirmation extends TransactionConfirmation {
   async clickConfirmButton(): Promise<void> {
     console.log('Click confirm button to confirm transaction');
     await this.driver.clickElement(this.confirmButton);
+  }
+
+  async clickLlmAnalysisButton(): Promise<void> {
+    console.log('Clicking LLM analysis button');
+    await this.driver.clickElement(this.llmAnalysisButton);
   }
 
   /**
@@ -76,6 +89,18 @@ class TokenTransferTransactionConfirmation extends TransactionConfirmation {
 
   async check_networkParagraph() {
     await this.driver.waitForSelector(this.networkParagraph);
+  }
+
+  async check_llmAnalysisResultIsVisible(): Promise<void> {
+    console.log('Checking for LLM analysis result');
+    await this.driver.assertElementNotPresent(this.llmAnalysisLoading);
+    await this.driver.waitForSelector(this.llmAnalysisResult);
+  }
+
+  async check_llmAnalysisErrorIsVisible(): Promise<void> {
+    console.log('Checking for LLM analysis error');
+    await this.driver.assertElementNotPresent(this.llmAnalysisLoading);
+    await this.driver.waitForSelector(this.llmAnalysisError);
   }
 
   /**

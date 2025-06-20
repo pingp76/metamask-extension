@@ -1,0 +1,250 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "研究MetaMask代码结构和确认交易页面",
+        "description": "分析MetaMask扩展的代码结构，定位确认交易页面的实现位置，了解现有的UI组件和数据流。已完成对整个交易确认流程的深入分析，成功定位到通用确认页面的核心实现组件。",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "details": "已完成对MetaMask扩展交易确认页面的全面研究。通过系统性分析，成功定位到关键组件：1) 确认交易页面的核心实现位于ui/pages/confirmations/confirm/confirm.tsx；2) 数据流通过ConfirmContextProvider和useConfirmContext hook管理；3) 关键UI子组件包括Info（交易详情）、Footer（确认/拒绝按钮）、PluggableSection（可扩展区域）；4) currentConfirmation对象包含所有交易详情数据。研究路径从ConfirmTransaction组件开始，经过ConfirmTransactionSwitch分析，最终定位到通用的Confirm组件实现。",
+        "testStrategy": "已创建完整的代码结构分析文档，验证了对关键组件和数据流的理解准确性，特别是交易确认流程的组件架构和数据传递机制",
+        "subtasks": [
+          {
+            "id": "1-1",
+            "title": "分析ConfirmTransaction核心组件",
+            "description": "研究ui/pages/confirmations/confirm-transaction/confirm-transaction.component.js文件的实现",
+            "status": "done",
+            "details": "已完成分析，发现：1) ConfirmTransaction是交易确认流程的顶层路由和逻辑分发组件；2) 数据从Redux store通过unconfirmedTransactionsListSelector和unconfirmedTransactionsHashSelector获取；3) 使用URL参数paramsTransactionId定位特定交易；4) 组件充当切换器，根据交易类型渲染不同子组件；5) 使用Redux actions如setTransactionToConfirm管理状态"
+          },
+          {
+            "id": "1-2",
+            "title": "分析ConfirmTransactionSwitch组件",
+            "description": "深入研究ui/pages/confirmations/confirm-transaction-switch/index.js，了解标准交易确认的UI实现",
+            "status": "completed",
+            "details": "已完成分析，发现该组件主要处理特定消息签名而非标准交易确认。通过分析其容器组件，了解了数据传递机制和组件职责范围。"
+          },
+          {
+            "id": "1-3",
+            "title": "定位通用确认页面核心组件",
+            "description": "通过useCurrentConfirmation hook追踪，成功定位到ui/pages/confirmations/confirm/confirm.tsx作为通用确认页面实现",
+            "status": "completed",
+            "details": "已完成分析，确认这是处理所有类型交易确认的核心TypeScript组件，包含完整的UI结构和数据管理机制。"
+          },
+          {
+            "id": "1-4",
+            "title": "分析Confirm组件的关键子组件",
+            "description": "深入研究Confirm组件的UI架构，识别Info、Footer、PluggableSection等关键子组件",
+            "status": "completed",
+            "details": "已完成分析，确认：1) Info组件负责显示核心交易详情；2) Footer组件包含确认和拒绝按钮；3) PluggableSection提供可扩展区域，是添加自定义LLM分析功能的理想位置。"
+          },
+          {
+            "id": "1-5",
+            "title": "梳理ConfirmContextProvider数据流机制",
+            "description": "分析ConfirmContextProvider和useConfirmContext hook的数据管理机制",
+            "status": "completed",
+            "details": "已完成分析，确认currentConfirmation对象是核心数据载体，包含所有需要展示和分析的交易详情，为后续功能开发提供了清晰的数据接口。"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "设计LLM分析功能的UI组件",
+        "description": "设计并创建用于触发LLM分析和展示分析结果的UI组件，遵循MetaMask的设计规范",
+        "details": "创建以下UI组件：1) AnalysisButton - 触发LLM分析的按钮组件，包含加载状态；2) AnalysisResult - 展示LLM分析结果的组件，支持风险等级显示；3) 使用MetaMask现有的设计系统（如Button、Card、Typography组件）；4) 实现响应式设计，适配不同屏幕尺寸；5) 添加适当的图标和视觉反馈；6) 确保组件可以独立渲染，不影响主交易确认流程。",
+        "testStrategy": "创建Storybook stories测试各种UI状态，进行视觉回归测试，验证组件在不同数据状态下的渲染",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "实现交易数据提取和格式化模块",
+        "description": "创建模块来提取和格式化交易详情，准备发送给LLM的数据结构",
+        "details": "实现TransactionDataExtractor模块：1) 从交易对象中提取关键信息（to, from, value, data, gas等）；2) 解析智能合约调用的方法名和参数；3) 格式化代币转账信息；4) 处理不同类型的交易（ETH转账、ERC20转账、合约交互）；5) 创建标准化的数据结构供LLM分析；6) 实现数据脱敏，移除敏感信息；7) 添加交易类型识别逻辑。伪代码：```js\nclass TransactionDataExtractor {\n  extractTransactionDetails(txData) {\n    return {\n      type: this.identifyTransactionType(txData),\n      amount: this.formatAmount(txData.value),\n      recipient: txData.to,\n      contractMethod: this.parseContractMethod(txData.data),\n      estimatedGas: txData.gas\n    };\n  }\n}\n```",
+        "testStrategy": "单元测试覆盖各种交易类型，验证数据提取的准确性和格式化的正确性，测试边界情况",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "实现LLM API调用服务",
+        "description": "创建服务模块来调用OpenRouter的Gemini 2.5 Pro模型，处理交易分析请求和响应",
+        "status": "done",
+        "dependencies": [
+          3
+        ],
+        "priority": "high",
+        "details": "实现LLMAnalysisService，使用OpenRouter作为LLM提供商：1) 配置OpenRouter API端点，使用google/gemini-2.5-pro模型；2) 暂时硬编码API密钥（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）用于概念验证；3) 构建包含交易数据和分析prompt的请求；4) 实现异步API调用，支持超时和错误处理；5) 解析LLM响应，提取风险评估和自然语言描述；6) 实现请求缓存机制避免重复调用；7) 设计prompt模板，指导LLM分析交易风险。伪代码：```js\nclass LLMAnalysisService {\n  constructor() {\n    this.apiKey = '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';\n    this.baseUrl = 'https://openrouter.ai/api/v1';\n    this.model = 'google/gemini-2.5-pro';\n  }\n  \n  async analyzeTransaction(transactionData) {\n    const prompt = this.buildPrompt(transactionData);\n    const response = await this.callOpenRouter(prompt);\n    return this.parseResponse(response);\n  }\n  \n  buildPrompt(txData) {\n    return `分析以下区块链交易的风险：${JSON.stringify(txData)}`;\n  }\n}\n```",
+        "testStrategy": "Mock OpenRouter API进行单元测试，测试Gemini 2.5 Pro模型的响应格式解析，验证错误处理和超时机制，测试API密钥认证",
+        "subtasks": [
+          {
+            "id": "4.1",
+            "title": "配置OpenRouter API客户端",
+            "description": "设置OpenRouter API端点和认证",
+            "details": "配置基础URL (https://openrouter.ai/api/v1)，设置API密钥认证，选择google/gemini-2.5-pro模型",
+            "status": "done"
+          },
+          {
+            "id": "4.2",
+            "title": "实现交易数据prompt构建",
+            "description": "创建结构化的prompt模板",
+            "details": "设计prompt模板，将交易数据格式化为LLM可理解的分析请求，包含风险评估指导",
+            "status": "done"
+          },
+          {
+            "id": "4.3",
+            "title": "实现异步API调用方法",
+            "description": "创建调用OpenRouter API的核心方法",
+            "details": "实现callOpenRouter方法，处理HTTP请求，设置超时，实现错误处理和重试机制",
+            "status": "done"
+          },
+          {
+            "id": "4.4",
+            "title": "实现响应解析器",
+            "description": "解析Gemini 2.5 Pro的响应格式",
+            "details": "解析OpenRouter返回的JSON响应，提取LLM生成的风险分析内容，处理可能的格式变化",
+            "status": "done"
+          },
+          {
+            "id": "4.5",
+            "title": "添加请求缓存机制",
+            "description": "实现缓存避免重复API调用",
+            "details": "基于交易数据hash实现缓存，设置合理的过期时间，减少API调用成本",
+            "status": "done"
+          },
+          {
+            "id": "4.6",
+            "title": "集成测试和验证",
+            "description": "测试完整的LLM分析流程",
+            "details": "使用真实API密钥测试OpenRouter连接，验证Gemini 2.5 Pro模型响应质量，测试错误场景",
+            "status": "done"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "集成LLM分析功能到确认交易页面",
+        "description": "将LLM分析功能集成到MetaMask的确认交易页面中，确保不阻断主流程",
+        "details": "在确认交易页面集成功能：1) 在现有确认页面添加AnalysisButton组件；2) 实现点击按钮触发LLM分析的逻辑；3) 管理分析状态（未开始、进行中、完成、错误）；4) 在页面中展示AnalysisResult组件；5) 确保LLM调用不阻塞用户的确认/取消操作；6) 添加适当的加载指示器；7) 实现错误状态的用户友好提示；8) 使用React hooks管理组件状态。伪代码：```js\nconst ConfirmTransaction = () => {\n  const [analysisState, setAnalysisState] = useState('idle');\n  const [analysisResult, setAnalysisResult] = useState(null);\n  \n  const handleAnalyze = async () => {\n    setAnalysisState('loading');\n    try {\n      const result = await llmService.analyzeTransaction(txData);\n      setAnalysisResult(result);\n      setAnalysisState('complete');\n    } catch (error) {\n      setAnalysisState('error');\n    }\n  };\n}\n```",
+        "testStrategy": "集成测试验证功能在确认页面的正确工作，测试各种交易类型和状态，确保不影响原有流程",
+        "priority": "high",
+        "dependencies": [
+          2,
+          4
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "实现状态管理和数据流",
+        "description": "使用MetaMask的状态管理系统来管理LLM分析功能的状态和数据",
+        "details": "集成Redux状态管理：1) 在MetaMask的Redux store中添加LLM分析相关的state；2) 创建actions来处理分析请求、成功、失败状态；3) 实现reducers来更新分析状态；4) 创建selectors来获取分析数据；5) 使用Redux middleware处理异步LLM调用；6) 确保状态在页面刷新后正确重置；7) 实现状态持久化（如果需要）。伪代码：```js\n// actions\nconst ANALYZE_TRANSACTION_REQUEST = 'ANALYZE_TRANSACTION_REQUEST';\nconst ANALYZE_TRANSACTION_SUCCESS = 'ANALYZE_TRANSACTION_SUCCESS';\nconst ANALYZE_TRANSACTION_FAILURE = 'ANALYZE_TRANSACTION_FAILURE';\n\n// reducer\nconst llmAnalysisReducer = (state = initialState, action) => {\n  switch (action.type) {\n    case ANALYZE_TRANSACTION_REQUEST:\n      return { ...state, loading: true, error: null };\n    // ...\n  }\n};\n```",
+        "testStrategy": "单元测试Redux actions和reducers，集成测试验证状态在组件中的正确更新",
+        "priority": "medium",
+        "dependencies": [
+          4,
+          5
+        ],
+        "status": "deferred",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "添加国际化支持",
+        "description": "为LLM分析功能添加多语言支持，遵循MetaMask的国际化规范",
+        "details": "实现i18n支持：1) 在MetaMask的语言文件中添加LLM分析相关的文本键值；2) 为按钮、标题、错误信息等添加翻译；3) 支持主要语言（英语、中文、日语等）；4) 确保LLM prompt也支持多语言；5) 处理不同语言的文本长度差异；6) 添加RTL语言支持的基础结构。示例：```json\n{\n  \"llmAnalysis\": {\n    \"analyzeButton\": \"Analyze Transaction\",\n    \"analyzing\": \"Analyzing...\",\n    \"riskLevel\": \"Risk Level: {{level}}\",\n    \"analysisError\": \"Analysis failed. Please try again.\"\n  }\n}\n```",
+        "testStrategy": "测试不同语言环境下的文本显示，验证文本长度不会破坏UI布局",
+        "priority": "medium",
+        "dependencies": [
+          2,
+          5
+        ],
+        "status": "deferred",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "实现错误处理和用户反馈",
+        "description": "添加完善的错误处理机制和用户反馈系统",
+        "details": "实现错误处理：1) 处理网络错误、API限制、超时等各种错误情况；2) 提供用户友好的错误信息；3) 实现重试机制；4) 添加错误日志记录；5) 创建fallback UI状态；6) 实现优雅降级，确保错误不影响主要交易流程；7) 添加用户反馈收集机制。伪代码：```js\nclass ErrorHandler {\n  handleLLMError(error) {\n    switch (error.type) {\n      case 'NETWORK_ERROR':\n        return { message: 'Network connection failed', retryable: true };\n      case 'API_LIMIT':\n        return { message: 'Service temporarily unavailable', retryable: false };\n      default:\n        return { message: 'Analysis failed', retryable: true };\n    }\n  }\n}\n```",
+        "testStrategy": "模拟各种错误场景，验证错误处理的正确性和用户体验",
+        "priority": "medium",
+        "dependencies": [
+          6
+        ],
+        "status": "deferred",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "性能优化和缓存实现",
+        "description": "实现性能优化措施，包括请求缓存和组件优化",
+        "details": "性能优化：1) 实现LLM响应缓存，避免重复分析相同交易；2) 使用React.memo优化组件渲染；3) 实现请求去重，防止用户快速点击导致的重复请求；4) 添加组件懒加载；5) 优化bundle大小，确保不影响MetaMask加载速度；6) 实现预加载机制；7) 添加性能监控。伪代码：```js\nclass CacheManager {\n  constructor() {\n    this.cache = new Map();\n  }\n  \n  getCachedAnalysis(txHash) {\n    return this.cache.get(txHash);\n  }\n  \n  setCachedAnalysis(txHash, result) {\n    this.cache.set(txHash, result);\n  }\n}\n```",
+        "testStrategy": "性能测试验证缓存效果，内存使用测试，加载时间测试",
+        "priority": "low",
+        "dependencies": [
+          6,
+          8
+        ],
+        "status": "deferred",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "编写单元测试",
+        "description": "为所有核心功能模块编写全面的单元测试",
+        "details": "编写单元测试：1) 为TransactionDataExtractor编写测试，覆盖各种交易类型；2) 为LLMAnalysisService编写测试，mock API调用；3) 为Redux actions和reducers编写测试；4) 为UI组件编写React Testing Library测试；5) 为错误处理逻辑编写测试；6) 确保测试覆盖率达到80%以上；7) 使用Jest和相关测试工具；8) 添加测试数据fixtures。示例测试：```js\ndescribe('TransactionDataExtractor', () => {\n  it('should extract ETH transfer details', () => {\n    const txData = { to: '0x123', value: '1000000000000000000' };\n    const result = extractor.extractTransactionDetails(txData);\n    expect(result.type).toBe('ETH_TRANSFER');\n    expect(result.amount).toBe('1 ETH');\n  });\n});\n```",
+        "testStrategy": "运行测试套件，验证所有测试通过，检查代码覆盖率报告",
+        "priority": "high",
+        "dependencies": [
+          3,
+          4,
+          6
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "集成测试和端到端测试",
+        "description": "实现完整的集成测试，验证整个LLM分析功能的端到端流程",
+        "details": "集成测试实现：1) 使用Cypress或Playwright编写E2E测试；2) 测试完整的用户交互流程：触发分析 -> 显示加载状态 -> 展示结果；3) 测试不同类型的交易分析；4) 验证错误场景的处理；5) 测试与MetaMask主流程的集成；6) 模拟真实的LLM API响应；7) 测试在不同浏览器环境下的兼容性；8) 验证功能不影响现有MetaMask功能。测试场景：```js\ndescribe('LLM Analysis Feature', () => {\n  it('should analyze transaction and display result', () => {\n    cy.visit('/confirm-transaction');\n    cy.get('[data-testid=\"analyze-button\"]').click();\n    cy.get('[data-testid=\"loading-indicator\"]').should('be.visible');\n    cy.get('[data-testid=\"analysis-result\"]').should('contain', 'Risk Level');\n  });\n});\n```",
+        "testStrategy": "运行完整的E2E测试套件，验证所有用户场景，检查测试报告和截图",
+        "priority": "high",
+        "dependencies": [
+          10
+        ],
+        "status": "deferred",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "代码审查和文档编写",
+        "description": "进行代码审查，编写技术文档和用户指南",
+        "details": "代码审查和文档：1) 进行全面的代码审查，确保符合MetaMask代码规范；2) 检查代码安全性和性能；3) 编写技术文档，包括架构设计、API文档；4) 创建用户使用指南；5) 编写开发者文档，说明如何扩展和维护功能；6) 添加代码注释和JSDoc；7) 创建troubleshooting指南；8) 准备发布说明。文档结构：```markdown\n# LLM Transaction Analysis Feature\n\n## Architecture\n- Component structure\n- Data flow\n- API integration\n\n## Usage\n- User guide\n- Configuration\n- Troubleshooting\n```",
+        "testStrategy": "文档审查，确保文档准确性和完整性，验证示例代码可以正常运行",
+        "priority": "medium",
+        "dependencies": [
+          11
+        ],
+        "status": "deferred",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-06-20T02:41:28.403Z",
+      "updated": "2025-06-20T03:59:44.329Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

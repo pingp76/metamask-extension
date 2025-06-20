@@ -1,5 +1,5 @@
 import { ReactNodeLike } from 'prop-types';
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useCallback, useState } from 'react';
 
 import { Page } from '../../../components/multichain/pages/page';
 import { GasFeeContextProvider } from '../../../contexts/gasFee';
@@ -21,6 +21,26 @@ import { ConfirmNav } from '../components/confirm/nav/nav';
 import { GasFeeTokenToast } from '../components/confirm/info/shared/gas-fee-token-toast/gas-fee-token-toast';
 import { Splash } from '../components/confirm/splash';
 
+// --- LLM Analysis Imports ---
+import { LlmTransactionAnalysisService } from '../../../../shared/lib/llm-analysis-service';
+import { formatTransactionForLLM } from '../utils/llm-analytics.util';
+import { AnalysisButton } from '../components/llm-transaction-analysis/AnalysisButton';
+import { AnalysisResult } from '../components/llm-transaction-analysis/AnalysisResult';
+// --- End LLM Analysis Imports ---
+
+// Define a type for the analysis result state
+type AnalysisData = {
+  analysis: string;
+  riskLevel: 'low' | 'medium' | 'high';
+};
+
+type ApiError = {
+  error: string;
+  details?: string;
+};
+
+// --- End LLM Analysis Types ---
+
 const EIP1559TransactionGasModal = () => {
   return (
     <>
@@ -41,6 +61,68 @@ const GasFeeContextProviderWrapper: React.FC<{
   );
 };
 
+const LlmAnalysisSection = () => {
+  const { currentConfirmation } = useConfirmContext();
+  const [analysisState, setAnalysisState] = useState<
+    'idle' | 'loading' | 'done' | 'error'
+  >('idle');
+  const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
+
+  const handleAnalyzeClick = useCallback(async () => {
+    setAnalysisState('loading');
+    setAnalysisData(null);
+
+    const service = new LlmTransactionAnalysisService();
+    // The 'currentConfirmation' can be one of many types. We check for txParams
+    // to ensure we're dealing with a transaction-like confirmation.
+    if (!('txParams' in currentConfirmation)) {
+      setAnalysisState('error');
+      setAnalysisData({
+        analysis: 'This type of confirmation cannot be analyzed.',
+        riskLevel: 'high',
+      });
+      return;
+    }
+    const formattedData = formatTransactionForLLM(currentConfirmation);
+
+    if (!formattedData) {
+      setAnalysisState('error');
+      setAnalysisData({
+        analysis: 'Could not format transaction data for analysis.',
+        riskLevel: 'high',
+      });
+      return;
+    }
+
+    const result: AnalysisData | ApiError = await service.analyzeTransaction(
+      formattedData,
+    );
+
+    if ('error' in result) {
+      setAnalysisState('error');
+      setAnalysisData({ analysis: result.error, riskLevel: 'high' });
+    } else {
+      setAnalysisState('done');
+      setAnalysisData(result);
+    }
+  }, [currentConfirmation]);
+
+  return (
+    <div style={{ padding: '0 16px' }}>
+      <AnalysisButton
+        onClick={handleAnalyzeClick}
+        isLoading={analysisState === 'loading'}
+      />
+      {analysisData && (
+        <AnalysisResult
+          analysis={analysisData.analysis}
+          riskLevel={analysisData.riskLevel}
+        />
+      )}
+    </div>
+  );
+};
+
 const Confirm = () => (
   <ConfirmContextProvider>
     <TransactionModalContextProvider>
@@ -58,6 +140,7 @@ const Confirm = () => (
               <Title />
               <Info />
               <PluggableSection />
+              <LlmAnalysisSection />
             </ScrollToBottom>
             <GasFeeTokenToast />
             <Footer />
